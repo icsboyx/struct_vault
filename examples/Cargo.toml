@@ -5,8 +5,9 @@ edition = "2024"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-struct_vault = { path = "../struct_vault" }
 serde_json = "1.0.149"
+struct_vault = { path = "../struct_vault", features = ["async"] }
+tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
 
 [[bin]]
 name = "index"
@@ -67,3 +68,11 @@ path = "12_timestamp.rs"
 [[bin]]
 name = "13_multithread"
 path = "13_multithread.rs"
+
+[[bin]]
+name = "14_async"
+path = "14_async.rs"
+
+[[bin]]
+name = "15_async_concurrency"
+path = "15_async_concurrency.rs"

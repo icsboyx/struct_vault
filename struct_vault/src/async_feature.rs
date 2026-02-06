@@ -70,9 +70,7 @@ pub async fn vault_save_async<T: PersistentStructConfig>(value: &T) -> Result<()
 }
 
 async fn safe_write_async(path: &Path, data: &str) -> Result<()> {
-    let dir = path
-        .parent()
-        .ok_or_else(|| anyhow::anyhow!("No parent dir"))?;
+    let dir = path.parent().ok_or_else(|| anyhow::anyhow!("No parent dir"))?;
     fs::create_dir_all(dir).await?;
 
     let mut tmp = path.to_path_buf();

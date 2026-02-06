@@ -14,7 +14,7 @@ use std::{
 use uuid::Uuid;
 
 #[cfg(feature = "async")]
-pub mod async_support;
+pub mod async_feature;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub enum SaveType {
