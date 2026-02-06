@@ -6,12 +6,13 @@
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use struct_vault::{vault_config, PersistentStructConfig};
+use std::time::Duration;
+use struct_vault::{PersistentStructConfig, vault_config};
 
 #[vault_config]
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 struct SharedConfig {
-    name: String,
+    names: Vec<String>,
     count: i32,
     enabled: bool,
 }
@@ -22,17 +23,26 @@ fn main() {
     base.vault_load_or_default();
 
     let shared = Arc::new(Mutex::new(base));
-
     let mut handles = Vec::new();
     for i in 0..4 {
         let shared = Arc::clone(&shared);
         handles.push(thread::spawn(move || {
+            println!("Thread {} starting", i);
             let mut cfg = shared.lock().expect("lock config");
+            if i == 0 {
+                for sec in (1..=5).rev() {
+                    println!("Thread 0 holding lock: {}s", sec);
+                    thread::sleep(Duration::from_secs(1));
+                }
+            }
             cfg.count += 1;
-            cfg.name = format!("Updated by thread {}", i);
+            cfg.names.push(format!("Updated by thread {}", i));
             cfg.enabled = !cfg.enabled;
             cfg.vault_save().expect("save config");
-            println!("Thread {} saved: count={}", i, cfg.count);
+            println!(
+                "Thread {} saved: names={:?} count={} enabled={}",
+                i, cfg.names, cfg.count, cfg.enabled
+            );
         }));
     }
 
