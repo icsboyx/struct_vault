@@ -6,6 +6,7 @@ edition = "2024"
 [features]
 default = ["derive"]
 derive = ["dep:struct_vault_macros"]
+async = ["dep:tokio"]
 
 [dependencies]
 anyhow = "1.0.100"
@@ -18,3 +19,4 @@ uuid = { version = "1.20.0", features = ["v4"] }
 
 # MUST be optional if you gate it behind a feature.
 struct_vault_macros = { path = "../struct_vault_macros", optional = true }
+tokio = { version = "1.43.0", features = ["fs", "io-util", "rt"], optional = true }

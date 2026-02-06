@@ -13,6 +13,9 @@ use std::{
 };
 use uuid::Uuid;
 
+#[cfg(feature = "async")]
+pub mod async_support;
+
 #[derive(Debug, Default, Clone, Copy)]
 pub enum SaveType {
     Json,
