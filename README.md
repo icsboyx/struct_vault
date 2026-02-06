@@ -71,4 +71,4 @@ To clean up:
 
 ## License
 
-See [LICENSE]`LICENSE`.
+See [LICENSE](LICENSE).
