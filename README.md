@@ -41,7 +41,7 @@ Each example is a standalone binary. Run any of them with:
 
 ## Files Created by Examples
 
-The examples write files to:
+The examples creates/write files to:
 
 - `.config/`
 - `.test_vault/`
