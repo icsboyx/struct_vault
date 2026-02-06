@@ -1,21 +1,19 @@
-#[cfg(test)]
-mod tests;
+#[cfg(feature = "derive")]
+pub use struct_vault_macros::vault_config;
 
-pub(crate) static CONFIG_DB: LazyLock<ConfigDB> = LazyLock::new(ConfigDB::default);
+pub static DEFAULT_SAVE_DIR: &str = ".config";
+
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::{
-    any::TypeId,
-    collections::HashMap,
     ffi::OsStr,
     fs::{self, File},
     io::Write,
     path::{Path, PathBuf},
-    sync::{LazyLock, RwLock},
 };
+use uuid::Uuid;
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum SaveType {
     Json,
     #[default]
@@ -34,138 +32,156 @@ impl SaveType {
 }
 
 #[derive(Debug, Clone)]
-pub struct StructConfig {
-    type_id: TypeId,
-    type_name: String,
+pub struct StructSaveConfig {
+    id: Uuid,
     file_name: String,
-    dir: PathBuf,
-    path: PathBuf,
+    save_dir: String,
+    full_path: String,
     file_type: SaveType,
 }
-
-impl StructConfig {
-    pub fn path(&self) -> &Path {
-        self.path.as_path()
+impl StructSaveConfig {
+    pub fn set_file_name(&mut self, file_name: &str) -> &mut Self {
+        self.file_name = file_name.into();
+        self.update_full_path();
+        self
     }
-    pub fn dir(&self) -> &PathBuf {
-        &self.dir
+    pub fn set_save_dir(&mut self, save_dir: &str) -> &mut Self {
+        self.save_dir = save_dir.into();
+        self.update_full_path();
+        self
+    }
+    pub fn set_file_type(&mut self, file_type: SaveType) -> &mut Self {
+        self.file_type = file_type;
+        self.update_full_path();
+        self
     }
 
-    pub fn file_name(&self) -> &str {
+    pub fn config(&mut self, save_dir: Option<String>, file_name: Option<String>, file_type: Option<SaveType>) {
+        self.file_name = file_name.unwrap_or_else(|| self.get_id().to_string());
+        self.save_dir = save_dir.unwrap_or_else(|| DEFAULT_SAVE_DIR.to_string());
+        self.file_type = file_type.unwrap_or(SaveType::default());
+        self.update_full_path();
+    }
+
+    pub fn get_id(&self) -> Uuid {
+        self.id
+    }
+
+    pub fn get_file_name(&self) -> &String {
         &self.file_name
     }
 
-    pub fn type_name(&self) -> &str {
-        &self.type_name
+    pub fn get_save_dir(&self) -> &String {
+        &self.save_dir
     }
 
-    pub fn file_type(&self) -> &SaveType {
-        &self.file_type
+    pub fn get_file_type(&self) -> SaveType {
+        self.file_type
     }
 
-    pub fn type_id(&self) -> &TypeId {
-        &self.type_id
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct ConfigDB {
-    configs: RwLock<HashMap<TypeId, StructConfig>>,
-}
-
-impl ConfigDB {
-    pub fn add_config<T>(&self, config: StructConfig)
-    where
-        T: 'static,
-    {
-        let type_id = std::any::TypeId::of::<T>();
-        self.configs.write().unwrap().insert(type_id, config);
+    pub fn path(&self) -> PathBuf {
+        PathBuf::from(self.full_path.to_owned())
     }
 
-    pub fn get_config<T>(&self) -> Option<StructConfig>
-    where
-        T: 'static,
-    {
-        let type_id = std::any::TypeId::of::<T>();
-        self.configs.read().unwrap().get(&type_id).cloned()
+    fn update_full_path(&mut self) {
+        self.full_path = format!("{}/{}.{}", self.save_dir, self.file_name, self.file_type.as_str());
     }
 
-    pub fn contains<T>(&self) -> bool
-    where
-        T: 'static,
-    {
-        let type_id = std::any::TypeId::of::<T>();
-        self.configs.read().unwrap().contains_key(&type_id)
+    fn default(file_name: &str) -> Self {
+        let id = Uuid::new_v4();
+        let save_dir = DEFAULT_SAVE_DIR.to_string();
+        let file_type = SaveType::default();
+        let full_path = format!("{}/{}.{}", save_dir, file_name, file_type.as_str());
+        StructSaveConfig {
+            id,
+            file_name: file_name.into(),
+            save_dir,
+            full_path,
+            file_type: SaveType::default(),
+        }
     }
 }
 
 pub trait PersistentStructConfig: Sized + Serialize + for<'de> Deserialize<'de> + 'static {
-    fn config(&self, dir: Option<&str>, file_name: Option<&str>, file_type: Option<SaveType>) {
-        let type_id = TypeId::of::<Self>();
-        let type_name = std::any::type_name::<Self>().split("::").last().unwrap().to_string();
+    fn vault_config(&self) -> Option<&StructSaveConfig>;
+    fn vault_get_config(&mut self) -> &mut Option<StructSaveConfig>;
 
-        let file_name = file_name.map(|s| s.to_string()).unwrap_or(type_name.to_string());
-        let dir = PathBuf::from(dir.map(|d| d.to_string()).unwrap_or(".config".to_string()));
-        let file_type = file_type.unwrap_or(SaveType::default());
-        let path = PathBuf::from(&dir).join(format!("{}.{}", &file_name, file_type.as_str()));
-
-        let config = StructConfig {
-            type_id,
-            type_name,
-            file_name,
-            dir,
-            path,
-            file_type,
-        };
-
-        CONFIG_DB.add_config::<Self>(config);
-    }
-
-    fn config_default(&self) {
-        self.config(None, None, None);
-    }
-
-    fn configured(&self) -> bool {
-        CONFIG_DB.contains::<Self>()
-    }
-
-    fn load_or_default(&mut self) -> &mut Self
-    where
-        Self: Default,
-    {
-        *self = self.load().unwrap_or_default();
+    // Set default config with given file name
+    fn vault_config_default(&mut self, file_name: &str) -> &mut Self {
+        *self.vault_get_config() = Some(StructSaveConfig::default(file_name));
         self
     }
 
-    fn try_load_into(&mut self) -> Result<&mut Self> {
-        *self = self.load()?;
-        Ok(self)
+    // Get mutable reference to the config, initializing it if necessary
+    fn vault_config_builder(&mut self, file_name: &str) -> &mut StructSaveConfig {
+        if self.vault_config().is_none() {
+            *self.vault_get_config() = Some(StructSaveConfig::default(file_name));
+        }
+        self.vault_get_config().as_mut().unwrap()
     }
 
-    fn load(&self) -> Result<Self> {
-        let Some(config) = CONFIG_DB.get_config::<Self>() else {
-            return Err(anyhow::anyhow!("Struct Vault not configured"));
-        };
-        let content = std::fs::read_to_string(config.path())?;
-        let deserialized = Self::data_deserialize(&content, Some(config.file_type.clone()))
-            .map_err(|e| anyhow::anyhow!("Deserialization error: {}", e))?;
-        Ok(deserialized)
-    }
-    fn save(&self) -> Result<()> {
-        let Some(config) = CONFIG_DB.get_config::<Self>() else {
-            return Err(anyhow::anyhow!("Struct Vault not configured"));
-        };
-        let serialized = self.data_serialize(Some(config.file_type.clone()))?;
-        safe_write(config.path(), &serialized)?;
-        Ok(())
+    // Load data from file specified in the config
+    fn vault_load(&mut self) -> Result<()> {
+        if let Some(config) = self.vault_config().cloned() {
+            let path = config.path();
+            let data = match fs::read_to_string(&path) {
+                Ok(d) => d,
+                Err(e) => {
+                    return Err(anyhow::anyhow!(
+                        "Failed to read data from file {}: {}",
+                        path.to_string_lossy(),
+                        e
+                    ));
+                }
+            };
+
+            let deserialized = match Self::data_deserialize(&data, Some(config.get_file_type())) {
+                Ok(d) => d,
+                Err(e) => {
+                    return Err(anyhow::anyhow!(
+                        "Failed to deserialize data from file {}: {}",
+                        path.to_string_lossy(),
+                        e
+                    ));
+                }
+            };
+            *self = deserialized;
+            *self.vault_get_config() = Some(config);
+            return Ok(());
+        } else {
+            Err(anyhow::anyhow!("No vault config set"))
+        }
     }
 
-    fn data_serialize(&self, file_type: Option<SaveType>) -> Result<String> {
-        let file_type = file_type.unwrap_or(SaveType::default());
-        match file_type {
-            SaveType::Json => Ok(serde_json::to_string_pretty(self)?),
-            SaveType::Toml => Ok(toml::to_string_pretty(self)?),
-            SaveType::Yaml => Ok(serde_yaml::to_string(self)?),
+    // Load data from file if exists or error, otherwise use default values
+    fn vault_load_or_default(&mut self)
+    where
+        Self: std::fmt::Debug,
+    {
+        if let Some(config) = self.vault_config().cloned() {
+            let path = config.path();
+            if path.exists() {
+                if let Ok(data) = fs::read_to_string(&path) {
+                    if let Ok(deserialized) = Self::data_deserialize(&data, Some(config.get_file_type())) {
+                        {
+                            *self = deserialized;
+                        }
+                        *self.vault_get_config() = Some(config);
+                    }
+                }
+            }
+        } else {
+            panic!("No vault config set");
+        }
+    }
+
+    fn vault_save(&self) -> Result<()> {
+        if let Some(config) = self.vault_config() {
+            let path = config.path();
+            let data = self.data_serialize(Some(config.get_file_type()))?;
+            safe_write(&path, &data)
+        } else {
+            Err(anyhow::anyhow!("No vault config set"))
         }
     }
 
@@ -175,6 +191,15 @@ pub trait PersistentStructConfig: Sized + Serialize + for<'de> Deserialize<'de> 
             SaveType::Json => Ok(serde_json::from_str(s)?),
             SaveType::Toml => Ok(toml::from_str(s)?),
             SaveType::Yaml => Ok(serde_yaml::from_str(s)?),
+        }
+    }
+
+    fn data_serialize(&self, file_type: Option<SaveType>) -> Result<String> {
+        let file_type = file_type.unwrap_or(SaveType::default());
+        match file_type {
+            SaveType::Json => Ok(serde_json::to_string_pretty(self)?),
+            SaveType::Toml => Ok(toml::to_string_pretty(self)?),
+            SaveType::Yaml => Ok(serde_yaml::to_string(self)?),
         }
     }
 }

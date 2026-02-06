@@ -1,0 +1,60 @@
+[package]
+name = "struct_vault_examples"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+struct_vault = { path = "../struct_vault" }
+
+[[bin]]
+name = "index"
+path = "main.rs"
+
+[[bin]]
+name = "01_default_toml"
+path = "01_default_toml.rs"
+
+[[bin]]
+name = "02_json_custom_dir"
+path = "02_json_custom_dir.rs"
+
+[[bin]]
+name = "03_yaml_format"
+path = "03_yaml_format.rs"
+
+[[bin]]
+name = "04_complex_struct"
+path = "04_complex_struct.rs"
+
+[[bin]]
+name = "05_error_missing_file"
+path = "05_error_missing_file.rs"
+
+[[bin]]
+name = "06_error_corrupted_file"
+path = "06_error_corrupted_file.rs"
+
+[[bin]]
+name = "07_error_no_config"
+path = "07_error_no_config.rs"
+
+[[bin]]
+name = "08_runtime_modification"
+path = "08_runtime_modification.rs"
+
+[[bin]]
+name = "09_load_preserves_config"
+path = "09_load_preserves_config.rs"
+
+[[bin]]
+name = "10_format_comparison"
+path = "10_format_comparison.rs"
+
+[[bin]]
+name = "11_incremental_updates"
+path = "11_incremental_updates.rs"
+
+[[bin]]
+name = "12_timestamp"
+path = "12_timestamp.rs"
