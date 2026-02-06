@@ -53,4 +53,4 @@ To clean up:
 ## Notes
 
 - The derive macro is enabled by default in the library features.
-- All examples are written in English and focused on practical usage.
+
