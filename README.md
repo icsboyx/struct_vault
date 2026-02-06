@@ -15,6 +15,15 @@ Struct Vault is a small Rust library to persist structs to disk with minimal set
 - Custom file names and custom directories
 - Safe writes (temporary file + rename)
 - Optional derive macro for quick integration
+ - Works with Send + Sync types; thread safety depends on your fields
+
+## How It Works
+
+Struct Vault injects a hidden config field into your struct (via `#[vault_config]`) and uses it to build a file path. When you call load/save, it serializes or deserializes your struct using the selected format, then writes or reads the file. Writes are done safely by writing to a temporary file and renaming it.
+
+## Send + Sync
+
+Struct Vault does not block multithread usage by itself. The injected config field is `Send + Sync`. Your struct is `Send + Sync` only if all its fields are `Send + Sync`. 
 
 ## Workspace Layout
 
@@ -26,6 +35,7 @@ Struct Vault is a small Rust library to persist structs to disk with minimal set
 
 Each example is a standalone binary. Run any of them with:
 
+- `cargo run -p struct_vault_examples --bin 00_injected_field`
 - `cargo run -p struct_vault_examples --bin 01_default_toml`
 - `cargo run -p struct_vault_examples --bin 02_json_custom_dir`
 - `cargo run -p struct_vault_examples --bin 03_yaml_format`
@@ -38,6 +48,10 @@ Each example is a standalone binary. Run any of them with:
 - `cargo run -p struct_vault_examples --bin 10_format_comparison`
 - `cargo run -p struct_vault_examples --bin 11_incremental_updates`
 - `cargo run -p struct_vault_examples --bin 12_timestamp`
+- `cargo run -p struct_vault_examples --bin 13_multithread`
+- `cargo run -p struct_vault_examples --bin 14_async`
+- `cargo run -p struct_vault_examples --bin 15_async_concurrency`
+- `cargo run -p struct_vault_examples --bin 16_send_sync`
 
 ## Files Created by Examples
 
@@ -53,6 +67,7 @@ To clean up:
 ## Notes
 
 - The derive macro is enabled by default in the library features.
+- Async helpers are available behind the `async` feature.
 
 ## License
 

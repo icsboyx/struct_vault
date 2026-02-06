@@ -76,3 +76,7 @@ path = "14_async.rs"
 [[bin]]
 name = "15_async_concurrency"
 path = "15_async_concurrency.rs"
+
+[[bin]]
+name = "16_send_sync"
+path = "16_send_sync.rs"
