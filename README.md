@@ -54,3 +54,6 @@ To clean up:
 
 - The derive macro is enabled by default in the library features.
 
+## License
+
+See `LICENSE`.
