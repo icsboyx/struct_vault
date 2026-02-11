@@ -3,12 +3,17 @@ use std::{
     fmt::Display,
     fs::{create_dir_all, read, write},
     path::PathBuf,
+    sync::{LazyLock, RwLock},
 };
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
-pub static DEFAULT_SAVE_DIR: &str = ".config";
+// Default save directory (relative to the current working directory).
+static DEFAULT_SAVE_DIR: &str = ".config";
+
+// Global default directory used when APIs receive `dir: None`.
+pub static CUSTOM_SAVE_DIR: LazyLock<RwLock<PathBuf>> = LazyLock::new(|| RwLock::new(PathBuf::from(DEFAULT_SAVE_DIR)));
 
 #[derive(Debug, Clone, Copy, Default)]
 pub enum SaveFormat {
@@ -41,15 +46,17 @@ impl Display for SaveFormat {
 }
 
 fn build_path(file_name: &str, dir: Option<&str>, format: SaveFormat) -> Result<PathBuf> {
-    let dir = dir.unwrap_or(DEFAULT_SAVE_DIR);
+    let mut dir = match dir {
+        Some(path) => PathBuf::from(path),
+        None => CUSTOM_SAVE_DIR.read().expect("CUSTOM_SAVE_DIR lock poisoned").clone(),
+    };
 
-    create_dir_all(dir).with_context(|| format!("Failed to create directory '{}'", dir))?;
+    create_dir_all(&dir).with_context(|| format!("Failed to create directory '{}'", dir.display()))?;
 
-    let mut path = PathBuf::from(dir);
-    path.push(file_name);
-    path.set_extension(format.as_ext());
+    dir.push(file_name);
+    dir.set_extension(format.as_ext());
 
-    Ok(path)
+    Ok(dir)
 }
 
 pub fn load<T>(file_name: &str, dir: Option<&str>, format: SaveFormat) -> Result<T>
@@ -59,7 +66,6 @@ where
     let path = build_path(file_name, dir, format).context("Failed to build path for loading")?;
 
     let buffer = read(&path).context(format!("Failed to read file '{}'", path.display()))?;
-
     let data = to_struct(format, buffer)?;
 
     Ok(data)
@@ -113,6 +119,11 @@ where
 }
 
 pub trait StructVaultSimple: Sized {
+    fn set_custom_dir(path: impl AsRef<str>) {
+        let path = PathBuf::from(path.as_ref());
+        *CUSTOM_SAVE_DIR.write().expect("CUSTOM_SAVE_DIR lock poisoned") = path;
+    }
+
     fn vault_filename() -> &'static str {
         let fqdn = std::any::type_name::<Self>();
         fqdn.rsplit("::").next().unwrap_or(fqdn)

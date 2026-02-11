@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use var_vault::{SaveFormat, load, load_or_default};
+use struct_vault::{SaveFormat, load, load_or_default};
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct TestStruct {

@@ -9,12 +9,17 @@ Struct Vault provides a small API for saving and loading structs in JSON, YAML, 
 - Save and load with `save`, `load`, and `load_or_default`
 - Formats: JSON, YAML, TOML
 - Default directory: `.config` (relative to the working directory)
+- Global custom default directory via `StructVaultSimple::set_custom_dir`
 - Optional convenience trait for type-based filenames
 
 ## Install
 
-```bash
-cargo add struct_vault
+`struct_vault` is currently not published on crates.io.
+Add it as a Git dependency in your `Cargo.toml`:
+
+```toml
+[dependencies]
+struct_vault = { git = "https://github.com/icsboyx/struct_vault" }
 ```
 
 ## Quick Start
@@ -111,7 +116,7 @@ fn main() -> anyhow::Result<()> {
 `StructVaultSimple` uses:
 
 - `vault_filename()` derived from the type name (last path segment)
-- `.config` as the directory
+- `.config` by default, or a custom global dir set with `set_custom_dir`
 - TOML as the format
 
 ## Examples
@@ -120,8 +125,9 @@ Examples live in `examples/`:
 
 - `examples/01_simple_load.rs`
 - `examples/02_simple_save.rs`
-- `examples/03_simple_load_or_default copy.rs`
+- `examples/03_simple_load_or_default.rs`
 - `examples/04_simple_struct_vault_simple.rs`
+- `examples/05_custom_dir.rs`
 
 Run one with:
 
